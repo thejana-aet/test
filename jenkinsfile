@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY_NAME = "demoregist"
+        REPOSITORY = "test-html-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        REGISTRY_URL = "demoregist.azurecr.io"
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh """
+                        docker build -t ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} .
+                        docker tag ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} ${REGISTRY_URL}/${REPOSITORY}:latest
+                    """
+                }
+            }
+        }
+
+        stage('Login to ACR') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'acr-admin', usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
+                    sh """
+                        echo \$ACR_PASS | docker login ${REGISTRY_URL} -u \$ACR_USER --password-stdin
+                    """
+                }
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                sh """
+                    docker push ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG}
+                    docker push ${REGISTRY_URL}/${REPOSITORY}:latest
+                """
+            }
+        }
+
+        stage('Cleanup Local Images') {
+            steps {
+                sh """
+                    docker rmi ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} || true
+                    docker rmi ${REGISTRY_URL}/${REPOSITORY}:latest || true
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed."
+        }
+    }
+}
