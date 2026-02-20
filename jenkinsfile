@@ -49,14 +49,6 @@ pipeline {
             }
         }
 
-        stage('Cleanup Local Images') {
-            steps {
-                sh """
-                    docker rmi ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} || true
-                    docker rmi ${REGISTRY_URL}/${REPOSITORY}:latest || true
-                """
-            }
-        }
 
         stage('Trigger VMSS Rolling Upgrade') {
             steps {
@@ -70,9 +62,9 @@ pipeline {
                         --name ${VMSS_NAME}
                 """
             }
-    }
+        }
 
-    stage('Cleanup Local Images') {
+        stage('Cleanup Local Images') {
             steps {
                 sh """
                     docker rmi ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} || true
@@ -80,7 +72,9 @@ pipeline {
                 """
             }
         }
+    }
 
+    
     post {
         always {
             echo "Pipeline completed."
