@@ -6,6 +6,9 @@ pipeline {
         REPOSITORY = "test-html-app"
         IMAGE_TAG = "${BUILD_NUMBER}"
         REGISTRY_URL = "demoregist.azurecr.io"
+
+        RESOURCE_GROUP = "demo-task9"
+        VMSS_NAME = "demo-vmss"
     }
 
     stages {
@@ -54,7 +57,29 @@ pipeline {
                 """
             }
         }
+
+        stage('Trigger VMSS Rolling Upgrade') {
+            steps {
+                sh """
+                    # Login using Managed Identity
+                    az login --identity
+
+                    # Start rolling upgrade
+                    az vmss rolling-upgrade start \
+                        --resource-group ${RESOURCE_GROUP} \
+                        --name ${VMSS_NAME}
+                """
+            }
     }
+
+    stage('Cleanup Local Images') {
+            steps {
+                sh """
+                    docker rmi ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} || true
+                    docker rmi ${REGISTRY_URL}/${REPOSITORY}:latest || true
+                """
+            }
+        }
 
     post {
         always {
