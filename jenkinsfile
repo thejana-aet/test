@@ -54,16 +54,26 @@ pipeline {
             steps {
                 sh """
                     az login --identity
+
+                    INSTANCES=\$(az vmss list-instances \
+                    --resource-group ${RESOURCE_GROUP} \
+                    --name ${VMSS_NAME} \
+                    --query "[].instanceId" -o tsv)
+
+                    for id in \$INSTANCES
+                    do
                     az vmss run-command invoke \
-                        --resource-group ${RESOURCE_GROUP} \
-                        --name ${VMSS_NAME} \
-                        --command-id RunShellScript \
-                        --scripts "
-                        docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
-                        docker stop test-html-app || true &&
-                        docker rm test-html-app || true &&
-                        docker run -d --name test-html-app --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
-                        "
+                    --resource-group ${RESOURCE_GROUP} \
+                    --name ${VMSS_NAME} \
+                    --instance-id \$id \
+                    --command-id RunShellScript \
+                    --scripts "
+                      docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
+                      docker stop test-html-app || true &&
+                      docker rm test-html-app || true &&
+                      docker run -d --name test-html-app --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
+                    "
+                    done
                 """
             }
         }
