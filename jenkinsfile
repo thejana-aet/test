@@ -50,16 +50,20 @@ pipeline {
         }
 
 
-        stage('Trigger VMSS Rolling Upgrade') {
+        stage('Update Containers On VMSS') {
             steps {
                 sh """
-                    # Login using Managed Identity
                     az login --identity
-
-                    # Start rolling upgrade
-                    az vmss rolling-upgrade start \
+                    az vmss run-command invoke \
                         --resource-group ${RESOURCE_GROUP} \
-                        --name ${VMSS_NAME}
+                        --name ${VMSS_NAME} \
+                        --command-id RunShellScript \
+                        --scripts "
+                        docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
+                        docker stop test-html-app || true &&
+                        docker rm test-html-app || true &&
+                        docker run -d --name test-html-app --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
+                        "
                 """
             }
         }
