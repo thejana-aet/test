@@ -2,13 +2,14 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY_NAME = "demoregist"
-        REPOSITORY = "test-html-app"
+        REGISTRY_NAME = "task9developmentacr"
+        REPOSITORY = "task9-html-app"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        REGISTRY_URL = "demoregist.azurecr.io"
+        REGISTRY_URL = "task9developmentacr.azurecr.io"
 
-        RESOURCE_GROUP = "demo-task9"
-        VMSS_NAME = "demo-vmss"
+        RESOURCE_GROUP = "Task9-Thejana-Development-RG"
+        VMSS_NAME = "Task9-Thejana-Development-vmss"
+        CONTAINER_NAME     = "helloworld"
     }
 
     stages {
@@ -30,9 +31,9 @@ pipeline {
             }
         }
 
-        stage('Login to ACR') {
+        stage('Login to Dev ACR') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'acr-admin', usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'acr-dev-admin', usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
                     sh """
                         echo \$ACR_PASS | docker login ${REGISTRY_URL} -u \$ACR_USER --password-stdin
                     """
@@ -68,10 +69,11 @@ pipeline {
                     --instance-id \$id \
                     --command-id RunShellScript \
                     --scripts "
+                      docker login ${REGISTRY_URL} -u \$ACR_USER -p \$ACR_PASS &&
                       docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
-                      docker stop test-html-app || true &&
-                      docker rm test-html-app || true &&
-                      docker run -d --name test-html-app --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
+                      docker stop ${CONTAINER_NAME} || true &&
+                      docker rm ${CONTAINER_NAME} || true &&
+                      docker run -d --name ${CONTAINER_NAME} --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
                     "
                     done
                 """
@@ -90,8 +92,14 @@ pipeline {
 
     
     post {
+        success {
+            echo "Dev deployment completed successfully. Build #${BUILD_NUMBER} is live."
+        }
+        failure {
+            echo "Dev deployment failed at build #${BUILD_NUMBER}. Check logs above."
+        }
         always {
-            echo "Pipeline completed."
+            echo "Pipeline finished."
         }
     }
 }
