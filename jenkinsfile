@@ -54,7 +54,6 @@ pipeline {
         stage('Update Containers On VMSS') {
             steps {
                 sh """
-                    az login --identity
 
                     INSTANCES=\$(az vmss list-instances \
                     --resource-group ${RESOURCE_GROUP} \
@@ -72,7 +71,8 @@ pipeline {
                       docker login ${REGISTRY_URL} -u \$ACR_USER -p \$ACR_PASS &&
                       docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
                       docker stop ${CONTAINER_NAME} || true &&
-                      docker rm ${CONTAINER_NAME} || true &&
+                      sleep 2 &&
+                      docker rm --force ${CONTAINER_NAME} 2> /dev/null || true &&
                       docker run -d --name ${CONTAINER_NAME} --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
                     "
                     done
