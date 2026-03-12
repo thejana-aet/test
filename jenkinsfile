@@ -1,19 +1,15 @@
 pipeline {
     agent any
-
     environment {
-        REGISTRY_NAME = "task9developmentacr"
-        REPOSITORY = "task9-html-app"
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        REGISTRY_URL = "task9developmentacr.azurecr.io"
-
+        REGISTRY_NAME  = "task9developmentacr"
+        REPOSITORY     = "task9-html-app"
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        REGISTRY_URL   = "task9developmentacr.azurecr.io"
         RESOURCE_GROUP = "Task9-Thejana-Development-RG"
-        VMSS_NAME = "Task9-Thejana-Development-vmss"
-        CONTAINER_NAME     = "helloworld"
+        VMSS_NAME      = "Task9-Thejana-Development-vmss"
+        CONTAINER_NAME = "helloworld"
     }
-
     stages {
-
         stage('Checkout Code') {
             steps {
                 checkout scm
@@ -22,12 +18,10 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh """
-                        docker build -t ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} .
-                        docker tag ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} ${REGISTRY_URL}/${REPOSITORY}:latest
-                    """
-                }
+                sh """
+                    docker build -t ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} .
+                    docker tag ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG} ${REGISTRY_URL}/${REPOSITORY}:latest
+                """
             }
         }
 
@@ -41,7 +35,7 @@ pipeline {
             }
         }
 
-        stage('Push Image') {
+        stage('Push Image to Dev ACR') {
             steps {
                 sh """
                     docker push ${REGISTRY_URL}/${REPOSITORY}:${IMAGE_TAG}
@@ -50,31 +44,28 @@ pipeline {
             }
         }
 
-
-        stage('Update Containers On VMSS') {
+        stage('Deploy to Dev VMSS') {
             steps {
                 sh """
-
+                    az login --identity
                     INSTANCES=\$(az vmss list-instances \
-                    --resource-group ${RESOURCE_GROUP} \
-                    --name ${VMSS_NAME} \
-                    --query "[].instanceId" -o tsv)
+                        --resource-group ${RESOURCE_GROUP} \
+                        --name ${VMSS_NAME} \
+                        --query "[].instanceId" -o tsv)
 
                     for id in \$INSTANCES
                     do
-                    az vmss run-command invoke \
-                    --resource-group ${RESOURCE_GROUP} \
-                    --name ${VMSS_NAME} \
-                    --instance-id \$id \
-                    --command-id RunShellScript \
-                    --scripts "
-                      docker login ${REGISTRY_URL} -u \$ACR_USER -p \$ACR_PASS &&
-                      docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
-                      docker stop ${CONTAINER_NAME} || true &&
-                      sleep 2 &&
-                      docker rm --force ${CONTAINER_NAME} 2> /dev/null || true &&
-                      docker run -d --name ${CONTAINER_NAME} --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
-                    "
+                        az vmss run-command invoke \
+                            --resource-group ${RESOURCE_GROUP} \
+                            --name ${VMSS_NAME} \
+                            --instance-id \$id \
+                            --command-id RunShellScript \
+                            --scripts "
+                                docker pull ${REGISTRY_URL}/${REPOSITORY}:latest &&
+                                docker stop ${CONTAINER_NAME} || true &&
+                                docker rm ${CONTAINER_NAME} || true &&
+                                docker run -d --name ${CONTAINER_NAME} --restart always -p 80:80 ${REGISTRY_URL}/${REPOSITORY}:latest
+                            "
                     done
                 """
             }
@@ -90,7 +81,6 @@ pipeline {
         }
     }
 
-    
     post {
         success {
             echo "Dev deployment completed successfully. Build #${BUILD_NUMBER} is live."
