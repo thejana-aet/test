@@ -1,12 +1,12 @@
 pipeline {
     agent any
     environment {
-        REGISTRY_NAME  = "task9developmentacr"
-        REPOSITORY     = "task9-html-app"
+        REGISTRY_NAME  = "developmentacr26"
+        REPOSITORY     = "html-app"
         IMAGE_TAG      = "${BUILD_NUMBER}"
-        REGISTRY_URL   = "task9developmentacr.azurecr.io"
+        REGISTRY_URL   = "developmentacr26.azurecr.io"
         RESOURCE_GROUP = "Task9-Thejana-Development-RG"
-        VMSS_NAME      = "Task9-Thejana-Development-vmss"
+        VMSS_NAME      = "Development-vmss"
         CONTAINER_NAME = "helloworld"
     }
     stages {
